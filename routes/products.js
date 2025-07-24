@@ -6,16 +6,8 @@ const multer = require('multer');
 const path = require('path');
 const { uploadToCloudinary } = require('../config/cloudinary');
 
-// Configure multer for temporary file storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '..', 'tmp')); // Store files temporarily
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Use memory storage instead of disk storage
+const storage = multer.memoryStorage();
 
 // File filter for multer
 const fileFilter = (req, file, cb) => {
@@ -112,8 +104,18 @@ router.post('/', auth, (req, res) => {
       }
 
       console.log('Uploading to Cloudinary...');
-      // Upload to Cloudinary
-      const imageUrl = await uploadToCloudinary(req.file);
+      
+      // Create a buffer from the file data
+      const fileBuffer = req.file.buffer;
+      const fileType = req.file.mimetype;
+      
+      // Upload buffer to Cloudinary
+      const imageUrl = await uploadToCloudinary({ 
+        buffer: fileBuffer,
+        mimetype: fileType,
+        originalname: req.file.originalname
+      });
+      
       console.log('Cloudinary upload successful:', imageUrl);
 
       // Create new product
