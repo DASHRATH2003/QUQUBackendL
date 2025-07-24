@@ -25,6 +25,7 @@
     "mime": "^4.0.7",
     "mongoose": "^7.5.0",
     "multer": "^2.0.2",
+    "streamifier": "^0.1.1",
     "stripe": "^18.3.0",
     "tough-cookie": "^5.1.2"
   },
