@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const multer = require('multer');
 
 const authRoutes = require('./routes/auth');
 const orderRoutes = require('./routes/orders');
@@ -74,10 +75,57 @@ app.use('/api/admin', adminRoutes);
 // ✅ Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(500).json({
+
+  // Handle Multer errors
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      success: false,
+      message: 'File upload error',
+      error: err.message
+    });
+  }
+
+  // Handle validation errors
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error',
+      error: Object.values(err.errors).map(e => e.message)
+    });
+  }
+
+  // Handle JWT errors
+  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication error',
+      error: 'Invalid or expired token'
+    });
+  }
+
+  // Handle file system errors
+  if (err.code === 'ENOENT') {
+    return res.status(400).json({
+      success: false,
+      message: 'File error',
+      error: 'File not found or inaccessible'
+    });
+  }
+
+  // Handle MongoDB errors
+  if (err.name === 'MongoError' || err.name === 'MongoServerError') {
+    return res.status(500).json({
+      success: false,
+      message: 'Database error',
+      error: 'Operation failed'
+    });
+  }
+
+  // Default error
+  res.status(err.status || 500).json({
     success: false,
-    message: 'Something broke!',
-    error: err.message
+    message: err.message || 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.stack : 'Internal server error'
   });
 });
 
