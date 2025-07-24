@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+
 const authRoutes = require('./routes/auth');
 const orderRoutes = require('./routes/orders');
 const productRoutes = require('./routes/products');
@@ -37,10 +38,15 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ✅ Root route - Added this to avoid "Cannot GET /"
+app.get('/', (req, res) => {
+  res.send('Backend API is running 🚀');
+});
+
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/products', productRoutes);
@@ -62,11 +68,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// MongoDB Connection
+// MongoDB Connection and Server Start
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB Atlas');
-    // Start server only after successful database connection
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
@@ -75,4 +80,4 @@ mongoose.connect(MONGODB_URI)
   .catch((err) => {
     console.error('MongoDB connection error:', err);
     process.exit(1);
-  }); 
+  });
