@@ -6,6 +6,10 @@ const orderSchema = new mongoose.Schema({
     ref: 'User'
   },
   products: [{
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product'
+    },
     name: {
       type: String,
       required: true
@@ -76,6 +80,15 @@ const orderSchema = new mongoose.Schema({
       enum: ['pending', 'completed', 'failed'],
       default: 'pending'
     }
+  },
+  shippedAt: {
+    type: Date
+  },
+  deliveredAt: {
+    type: Date
+  },
+  cancelledAt: {
+    type: Date
   },
   createdAt: {
     type: Date,

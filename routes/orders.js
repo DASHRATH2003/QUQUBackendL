@@ -7,9 +7,12 @@ const auth = require('../middleware/auth');
 // Get user's orders
 router.get('/my-orders', auth, async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id })
-      .populate('products.product')
-      .sort('-createdAt');
+    const orders = await Order.find({ 
+      user: req.user._id,
+      'paymentInfo.status': 'completed'  // Only show paid orders
+    })
+    .populate('user', 'name email')
+    .sort('-createdAt');
     res.json(orders);
   } catch (error) {
     console.error('Error fetching user orders:', error);
@@ -29,6 +32,7 @@ router.get('/', auth, async (req, res) => {
 
     // Fetch orders with pagination
     const orders = await Order.find()
+      .populate('user', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -41,6 +45,7 @@ router.get('/', auth, async (req, res) => {
       email: order.shippingAddress?.email || 'N/A',
       amount: order.totalAmount || 0,
       status: order.orderStatus || 'processing',
+      paymentStatus: order.paymentInfo?.status || 'pending',
       date: order.createdAt,
       products: order.products?.map(product => ({
         name: product.name,
@@ -167,42 +172,57 @@ router.put('/:id/status', auth, async (req, res) => {
       });
     }
 
-    // Update status
+    // Update status and corresponding date
     order.orderStatus = orderStatus;
+    
+    // Set the appropriate date based on status
+    if (orderStatus === 'shipped') {
+      order.shippedAt = new Date();
+    } else if (orderStatus === 'delivered') {
+      order.deliveredAt = new Date();
+      if (!order.shippedAt) {
+        order.shippedAt = new Date(); // Auto-set shipped date if not set
+      }
+    } else if (orderStatus === 'cancelled') {
+      order.cancelledAt = new Date();
+    }
+
     await order.save();
 
-    // Transform order data
-    const transformedOrder = {
-      id: order._id.toString(),
-      customer: order.shippingAddress?.name || 'Guest User',
-      email: order.shippingAddress?.email || 'N/A',
-      amount: order.totalAmount || 0,
-      status: order.orderStatus,
-      date: order.createdAt,
-      products: order.products?.map(product => ({
-        name: product.name,
-        quantity: product.quantity,
-        price: product.price,
-        image: product.image
-      })) || [],
-      shippingAddress: {
-        name: order.shippingAddress?.name || '',
-        email: order.shippingAddress?.email || '',
-        phone: order.shippingAddress?.phone || '',
-        street: order.shippingAddress?.street || '',
-        city: order.shippingAddress?.city || '',
-        postcode: order.shippingAddress?.postcode || '',
-        country: order.shippingAddress?.country || 'GB'
-      }
-    };
-
-    // Return success response
+    // Return the updated order with all fields
     res.json({
       success: true,
       message: `Order status updated to ${orderStatus}`,
-      order: transformedOrder
+      order: {
+        id: order._id,
+        customer: order.shippingAddress?.name || 'Guest User',
+        email: order.shippingAddress?.email || 'N/A',
+        phone: order.shippingAddress?.phone || 'N/A',
+        amount: order.totalAmount || 0,
+        status: order.orderStatus,
+        isPaid: order.isPaid || false,
+        paidAt: order.paidAt,
+        shippedAt: order.shippedAt,
+        deliveredAt: order.deliveredAt,
+        cancelledAt: order.cancelledAt,
+        date: order.createdAt,
+        products: order.products?.map(product => ({
+          name: product.name,
+          quantity: product.quantity,
+          price: product.price,
+          image: product.image
+        })) || [],
+        shippingAddress: {
+          name: order.shippingAddress?.name || '',
+          email: order.shippingAddress?.email || '',
+          phone: order.shippingAddress?.phone || '',
+          street: order.shippingAddress?.street || '',
+          city: order.shippingAddress?.city || '',
+          postcode: order.shippingAddress?.postcode || '',
+          country: order.shippingAddress?.country || 'GB'
+        }
+      }
     });
-
   } catch (error) {
     console.error('Error updating order status:', error);
     res.status(500).json({

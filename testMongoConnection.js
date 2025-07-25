@@ -71,5 +71,4 @@ async function testConnection() {
         console.log('\nDisconnected from MongoDB');
     }
 }
-
 testConnection(); 
